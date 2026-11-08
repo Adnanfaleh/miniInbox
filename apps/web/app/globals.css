@@ -1,62 +1,15 @@
-/* Plain, readable layout. Logical properties only (inline/block, start/end) so Arabic RTL and English LTR
-   flip automatically from <html dir>. No left/right in this file. */
-:root {
-  --bg: #f6f7f9;
-  --panel: #ffffff;
-  --text: #1d2330;
-  --muted: #5f6878;
-  --border: #dde1e7;
-  --accent: #1f5fd1;
-  --customer: #ffffff;
-  --ai: #eaf2ff;
-  --human: #e9f7ee;
-  --system: #fff7e0;
-  --error: #b42318;
-  --success: #1a7f37;
-  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', Tahoma, sans-serif;
-  color: var(--text);
-  background: var(--bg);
-}
-* { box-sizing: border-box; }
-body { margin: 0; line-height: 1.5; }
-h1, h2 { font-size: 1.15rem; margin-block: 0 0.5rem; }
-button {
-  font: inherit; cursor: pointer; padding-block: 0.35rem; padding-inline: 0.8rem;
-  border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text);
-}
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button:disabled { opacity: 0.6; cursor: progress; }
-button.link-button { border: none; background: none; color: var(--accent); padding-inline: 0; }
-input, textarea, select {
-  font: inherit; inline-size: 100%; padding-block: 0.4rem; padding-inline: 0.6rem;
-  border: 1px solid var(--border); border-radius: 6px; background: #fff;
-}
-[aria-invalid='true'] { border-color: var(--error); }
-.muted { color: var(--muted); }
-.small { font-size: 0.85rem; }
-.error { color: var(--error); }
-.success { color: var(--success); }
+/* Dashboard layout only. Colours, controls, header, panels, badges and bubbles come from @mini-inbox/ui/theme.css
+   (shared with the customer simulator). Logical properties only, so Arabic RTL and English LTR flip from <html dir>. */
+h2 { font-size: 1.1rem; margin-block: 0 0.5rem; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; }
 
-.dev-banner {
-  margin: 0; padding-block: 0.4rem; padding-inline: 1rem; background: #fff3cd; color: #6b4e00;
-  border-block-end: 1px solid #f0d78c; font-size: 0.85rem; text-align: center;
-}
-.header {
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding-block: 0.6rem; padding-inline: 1rem;
-  background: var(--panel); border-block-end: 1px solid var(--border);
-}
 .brand { display: flex; gap: 0.6rem; align-items: baseline; margin-inline-end: auto; }
 .tenant-name { color: var(--muted); }
 .nav { display: flex; gap: 1rem; align-items: center; }
 .nav a { color: var(--accent); text-decoration: none; }
-.lang-switch { display: flex; gap: 0.25rem; }
-.lang-switch button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
-.main { padding: 1rem; }
 
-.pane { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
 .pane.narrow { max-inline-size: 760px; margin-inline: auto; }
-.pane-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-block-end: 0.75rem; }
+.pane-header { margin-block-end: 0.75rem; }
 .inbox { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 1rem; align-items: start; }
 @media (max-width: 760px) { .inbox { grid-template-columns: 1fr; } }
 
@@ -66,24 +19,18 @@ input, textarea, select {
   color: inherit; text-decoration: none; border: 1px solid transparent;
 }
 .conversation:hover { background: var(--bg); }
-.conversation.selected { border-color: var(--accent); background: var(--ai); }
+.conversation.selected { border-color: var(--accent); background: var(--accent-tint); }
 .customer { font-weight: 600; }
 .preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-inline-size: 70%; }
-
-.badge { display: inline-block; font-size: 0.75rem; padding-inline: 0.45rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); }
-.badge.mode-AI { background: var(--ai); border-color: #b9d1fb; }
-.badge.mode-HUMAN { background: var(--human); border-color: #a9dcb8; }
-.badge.status-FAILED { color: var(--error); }
 .mode-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 
+/* Staff view: customer on the start side, AI and staff replies on the end side. */
 .thread { display: flex; flex-direction: column; gap: 0.6rem; margin-block-end: 1rem; }
-.message { max-inline-size: 80%; padding-block: 0.5rem; padding-inline: 0.75rem; border-radius: 8px; border: 1px solid var(--border); }
+.message { max-inline-size: 80%; }
 .message-meta { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; color: var(--muted); }
 .message-body { margin: 0.25rem 0 0; white-space: pre-wrap; }
-.sender-CUSTOMER { background: var(--customer); align-self: flex-start; }
-.sender-AI { background: var(--ai); align-self: flex-end; }
-.sender-HUMAN { background: var(--human); align-self: flex-end; }
-.sender-SYSTEM { background: var(--system); align-self: center; max-inline-size: 90%; font-size: 0.9rem; }
+.message.sender-CUSTOMER { align-self: flex-start; }
+.message.sender-AI, .message.sender-HUMAN { align-self: flex-end; }
 .sender { font-weight: 600; color: var(--text); }
 .reply-box { display: flex; flex-direction: column; gap: 0.4rem; }
 
@@ -97,3 +44,11 @@ input, textarea, select {
 .field.checkbox input { inline-size: auto; }
 .knowledge-entry { border-block-start: 1px dashed var(--border); padding-block-start: 0.75rem; margin-block-end: 0.75rem; }
 .form-actions { justify-content: flex-end; }
+
+/* Open / Closed tabs and the staff-only lifecycle dividers. */
+.tabs { display: flex; gap: 0.25rem; margin-block-end: 0.75rem; border-block-end: 1px solid var(--border); }
+.tab { padding-block: 0.35rem; padding-inline: 0.8rem; color: var(--muted); text-decoration: none; border-block-end: 2px solid transparent; margin-block-end: -1px; }
+.tab[aria-current='page'] { color: var(--accent); border-block-end-color: var(--accent); font-weight: 600; }
+.badge.status-CLOSED { background: var(--bg); color: var(--muted); }
+.lifecycle-divider { display: flex; align-items: center; gap: 0.75rem; align-self: stretch; text-align: center; }
+.lifecycle-divider::before, .lifecycle-divider::after { content: ''; flex: 1; border-block-start: 1px dashed var(--border); }

@@ -6,7 +6,7 @@ import type {
   ConversationListResponse,
   MessageDto,
 } from '@mini-inbox/contracts';
-import { conversations, customers, messages, type Message } from '@mini-inbox/database';
+import { EventType, conversations, customers, events, messages, type Message } from '@mini-inbox/database';
 import { TenantDb } from '../database/tenant-db.service.js';
 
 const PREVIEW_LENGTH = 120;
@@ -35,13 +35,15 @@ export class ConversationsReadService {
 
   list(query: ConversationListQuery): Promise<ConversationListResponse> {
     return this.db.run(async (tx, tenantId) => {
-      const rows = await conversations.listSummaries(tx, tenantId, { take: query.limit, cursorId: query.cursor });
+      const rows = await conversations.listSummaries(tx, tenantId, { take: query.limit, cursorId: query.cursor, status: query.status });
       const items = rows.map((c) => {
         const last = c.messages[0];
         return {
           id: c.id,
           mode: c.mode,
           modeChangedAt: c.modeChangedAt?.toISOString() ?? null,
+          status: c.status,
+          statusChangedAt: c.statusChangedAt?.toISOString() ?? null,
           createdAt: c.createdAt.toISOString(),
           customer: { id: c.customer.id, label: customerLabel(c.customer) },
           lastMessage: last
@@ -60,15 +62,23 @@ export class ConversationsReadService {
       const customer = await customers.findById(tx, tenantId, conversation.customerId);
       if (!customer) throw new NotFoundException();
       const page = await messages.listPage(tx, tenantId, conversationId, { take: query.limit, beforeId: query.before });
+      // Closed / reopened markers for the staff view, from the audit log (times only).
+      const lifecycle = (await events.listLifecycle(tx, tenantId, conversationId)).map((e) => ({
+        type: e.eventType === EventType.CLOSED ? ('CLOSED' as const) : ('REOPENED' as const),
+        at: e.createdAt.toISOString(),
+      }));
       return {
         conversation: {
           id: conversation.id,
           mode: conversation.mode,
           modeChangedAt: conversation.modeChangedAt?.toISOString() ?? null,
+          status: conversation.status,
+          statusChangedAt: conversation.statusChangedAt?.toISOString() ?? null,
           createdAt: conversation.createdAt.toISOString(),
           customer: { id: customer.id, label: customerLabel(customer) },
         },
         messages: page.map(toMessageDto),
+        lifecycle,
         olderCursor: page.length === query.limit ? page[0]!.id : null,
       };
     });

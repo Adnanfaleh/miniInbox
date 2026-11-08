@@ -1,0 +1,77 @@
+/* Shared look for the tenant dashboard (apps/web) and the customer simulator (apps/customer-sim).
+   Each app imports this first, then adds only its own page layout in app/globals.css.
+   Logical properties only (inline/block, start/end) so Arabic RTL and English LTR flip from <html dir>. */
+:root {
+  --bg: #f3f5f2;
+  --panel: #ffffff;
+  --text: #1d2330;
+  --muted: #5f6878;
+  --border: #dde1e7;
+  --accent: #127a5b;
+  --accent-tint: #dcf5e9;
+  --customer: #dcf5e9;
+  --ai: #eaf2ff;
+  --human: #e9f7ee;
+  --system: #fff7e0;
+  --error: #b42318;
+  --success: #1a7f37;
+  font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans Arabic', Tahoma, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+body { margin: 0; line-height: 1.5; }
+h1 { font-size: 1.1rem; margin-block: 0 0.5rem; }
+p { margin-block: 0.25rem; }
+
+/* Controls */
+button {
+  font: inherit; cursor: pointer; padding-block: 0.35rem; padding-inline: 0.8rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text);
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: 0.6; cursor: progress; }
+button.link-button { border: none; background: none; color: var(--accent); padding-inline: 0; }
+a.button-link { border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text); text-decoration: none; }
+input, textarea, select {
+  font: inherit; inline-size: 100%; padding-block: 0.4rem; padding-inline: 0.6rem;
+  border: 1px solid var(--border); border-radius: 6px; background: #fff;
+}
+[aria-invalid='true'] { border-color: var(--error); }
+
+/* Text helpers */
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.error { color: var(--error); }
+.success { color: var(--success); }
+.visually-hidden { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Page frame */
+.dev-banner {
+  margin: 0; padding-block: 0.4rem; padding-inline: 1rem; text-align: center; font-size: 0.85rem;
+  background: #e3f4ec; border-block-end: 1px solid #b8dfcb;
+}
+.header {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding-block: 0.6rem; padding-inline: 1rem;
+  background: var(--panel); border-block-end: 1px solid var(--border);
+}
+.lang-switch { display: flex; gap: 0.25rem; }
+.lang-switch button[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
+.main { padding: 1rem; }
+.pane { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+.pane-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+
+/* Badges and hints */
+.badge { display: inline-block; font-size: 0.75rem; padding-inline: 0.45rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); }
+.badge.mode-AI { background: var(--ai); border-color: #b9d1fb; }
+.badge.mode-HUMAN { background: var(--human); border-color: #a9dcb8; }
+.badge.status-FAILED { color: var(--error); }
+.mode-hint { display: inline-block; background: var(--human); border-radius: 6px; padding-block: 0.25rem; padding-inline: 0.6rem; }
+
+/* Message bubbles: same shape and colour per sender in both apps. Which side each sender sits on is set by the app
+   (staff see the customer on the start side; the customer sees their own messages on the end side). */
+.message, .bubble { padding-block: 0.4rem; padding-inline: 0.75rem; border-radius: 10px; border: 1px solid var(--border); }
+.sender-CUSTOMER { background: var(--customer); }
+.sender-AI { background: var(--ai); }
+.sender-HUMAN { background: var(--human); }
+.sender-SYSTEM { background: var(--system); align-self: center; max-inline-size: 90%; text-align: center; }

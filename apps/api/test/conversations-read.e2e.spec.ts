@@ -161,7 +161,7 @@ describe('conversation detail', () => {
 describe('through the webhook', () => {
   it('two messages from the same sender appear as one conversation with two customer messages', async () => {
     const post = (externalId: string, text: string) =>
-      request(nest.getHttpServer()).post(`/webhook/${A.tenantId}/message`).send({ externalId, from: 'new-sender', text }).expect(202);
+      request(nest.getHttpServer()).post(`/webhook/${A.tenantId}/message`).send({ externalId, from: '+966500000005', text }).expect(202);
     const r1 = await post('w1', 'first');
     await post('w2', 'second');
     const list = await get(A.tenantId, '/conversations').expect(200);

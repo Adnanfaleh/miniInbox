@@ -34,6 +34,16 @@ export const events = {
     });
   },
 
+  /** Closed / reopened events of one conversation, oldest first: the most recent `take` of them (D-047). */
+  async listLifecycle(tx: TenantTx, tenantId: string, conversationId: string, take = 100): Promise<ConversationEvent[]> {
+    const rows = await tx.conversationEvent.findMany({
+      where: { tenantId, conversationId, eventType: { in: ['CLOSED', 'REOPENED'] } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: Math.min(Math.max(take, 1), EVENT_PAGE_MAX),
+    });
+    return rows.reverse();
+  },
+
   async listForConversation(tx: TenantTx, tenantId: string, conversationId: string): Promise<ConversationEvent[]> {
     return tx.conversationEvent.findMany({
       where: { tenantId, conversationId },

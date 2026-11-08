@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/com
 import {
   manualReplySchema,
   type ConversationModeState,
+  type ConversationStatusState,
   type ManualReply,
   type ManualReplyCreated,
 } from '@mini-inbox/contracts';
@@ -24,6 +25,12 @@ export class ConversationModeController {
   @HttpCode(HttpStatus.OK)
   returnToAi(@Param('id', UuidParamPipe) id: string): Promise<ConversationModeState> {
     return this.service.returnToAi(id);
+  }
+
+  @Post(':id/close')
+  @HttpCode(HttpStatus.OK)
+  close(@Param('id', UuidParamPipe) id: string): Promise<ConversationStatusState> {
+    return this.service.close(id);
   }
 
   @Post(':id/reply')

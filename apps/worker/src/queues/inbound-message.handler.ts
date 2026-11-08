@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CLASSIFICATION_FALLBACK, REPLY_PRIORITY } from '@mini-inbox/contracts';
-import { Mode, SenderType, conversations, messages, withTenant } from '@mini-inbox/database';
+import { ConversationStatus, Mode, SenderType, conversations, messages, withTenant } from '@mini-inbox/database';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { AiRouter } from '../ai/ai-router.js';
 import { PrismaService } from '../infra/prisma.service.js';
@@ -10,7 +10,7 @@ import { isWithinWorkingHours } from '../pipeline/working-hours.js';
 import { parseJobPayload } from './job-context.js';
 import { ReplyQueue } from './reply-queue.service.js';
 
-export type InboundOutcome = 'ignored' | 'already-settled' | 'skipped-human' | 'out-of-hours' | 'classified';
+export type InboundOutcome = 'ignored' | 'already-settled' | 'skipped-human' | 'skipped-closed' | 'out-of-hours' | 'classified';
 
 /**
  * Stage 1 (`inbound-message`, FIFO): reload, check mode and working hours, classify, then queue the reply
@@ -39,6 +39,11 @@ export class InboundMessageHandler {
       if (message.replyStatus !== 'PENDING') return { kind: 'already-settled' as const };
       const conversation = await conversations.findById(tx, tenantId, conversationId);
       if (!conversation) return { kind: 'ignored' as const };
+      if (conversation.status === ConversationStatus.CLOSED) {
+        // Closed by staff (D-047): no AI reply. A new customer message reopens the conversation.
+        await messages.settle(tx, tenantId, messageId, 'SKIPPED');
+        return { kind: 'skipped-closed' as const };
+      }
       if (conversation.mode === Mode.HUMAN) {
         // Messages that arrive during a takeover belong to the human (no AI reply, also not after return to AI).
         await messages.settle(tx, tenantId, messageId, 'SKIPPED');

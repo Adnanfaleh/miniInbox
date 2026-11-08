@@ -11,6 +11,17 @@ export type ManualReply = z.infer<typeof manualReplySchema>;
 
 export type ConversationMode = 'AI' | 'HUMAN';
 
+/** Lifecycle (D-047): staff close a conversation; the customer's next message reopens it in AI mode. */
+export const CONVERSATION_STATUSES = ['OPEN', 'CLOSED'] as const;
+export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
+/** Response of `POST /conversations/:id/close`. */
+export interface ConversationStatusState {
+  conversationId: string;
+  status: ConversationStatus;
+  statusChangedAt: string | null;
+}
+
 /** Response of takeover and return-to-AI. */
 export interface ConversationModeState {
   conversationId: string;
@@ -22,10 +33,11 @@ export interface ManualReplyCreated {
   messageId: string;
 }
 
-/** `GET /conversations` query. */
+/** `GET /conversations` query. The dashboard shows one tab at a time: open conversations by default. */
 export const conversationListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.uuid().optional(),
+  status: z.enum(CONVERSATION_STATUSES).default('OPEN'),
 });
 export type ConversationListQuery = z.infer<typeof conversationListQuerySchema>;
 
@@ -42,9 +54,17 @@ export interface ConversationListItem {
   id: string;
   mode: ConversationMode;
   modeChangedAt: string | null;
+  status: ConversationStatus;
+  statusChangedAt: string | null;
   createdAt: string;
   customer: { id: string; label: string };
   lastMessage: { senderType: SenderTypeDto; preview: string; createdAt: string } | null;
+}
+
+/** When the conversation was closed or reopened. Staff view only (the customer is not told, D-047). */
+export interface LifecycleMarker {
+  type: 'CLOSED' | 'REOPENED';
+  at: string;
 }
 
 export interface ConversationListResponse {
@@ -67,6 +87,7 @@ export interface MessageDto {
 export interface ConversationDetailResponse {
   conversation: Omit<ConversationListItem, 'lastMessage'>;
   messages: MessageDto[];
+  lifecycle: LifecycleMarker[];
   /** Pass as `before` to load older messages; null when there are none. */
   olderCursor: string | null;
 }

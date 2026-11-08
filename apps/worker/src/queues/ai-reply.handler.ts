@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Mode, SenderType, conversations, messages, withTenant } from '@mini-inbox/database';
+import { ConversationStatus, Mode, SenderType, conversations, messages, withTenant } from '@mini-inbox/database';
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
 import { AiRouter } from '../ai/ai-router.js';
 import { WORKER_SETTINGS, type WorkerSettings } from '../config/worker-env.js';
@@ -12,7 +12,7 @@ import { trimToLength } from '../pipeline/trim.js';
 import { isWithinWorkingHours } from '../pipeline/working-hours.js';
 import { parseJobPayload } from './job-context.js';
 
-export type ReplyOutcome = 'ignored' | 'already-settled' | 'skipped-human' | 'waiting' | WriteOutcome;
+export type ReplyOutcome = 'ignored' | 'already-settled' | 'skipped-human' | 'skipped-closed' | 'waiting' | WriteOutcome;
 
 /**
  * Stage 2 (`ai-reply`, priority): keep arrival order inside the conversation, draft the reply outside any lock,
@@ -43,6 +43,11 @@ export class AiReplyHandler {
       if (message.replyStatus !== 'PENDING') return { kind: 'already-settled' as const };
       const conversation = await conversations.findById(tx, tenantId, conversationId);
       if (!conversation) return { kind: 'ignored' as const };
+      if (conversation.status === ConversationStatus.CLOSED) {
+        // Closed by staff (D-047): no AI reply. A new customer message reopens the conversation.
+        await messages.settle(tx, tenantId, messageId, 'SKIPPED');
+        return { kind: 'skipped-closed' as const };
+      }
       if (conversation.mode === Mode.HUMAN) {
         await messages.settle(tx, tenantId, messageId, 'SKIPPED');
         return { kind: 'skipped-human' as const };

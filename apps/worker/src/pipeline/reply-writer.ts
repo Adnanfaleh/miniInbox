@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EventType, Mode, SenderType, events, lockConversation, messages, withTenant } from '@mini-inbox/database';
+import { ConversationStatus, EventType, Mode, SenderType, events, lockConversation, messages, withTenant } from '@mini-inbox/database';
 import { PrismaService } from '../infra/prisma.service.js';
 
 export type WriteOutcome = 'sent' | 'discarded' | 'already-settled' | 'not-found';
@@ -9,7 +9,7 @@ export type WriteOutcome = 'sent' | 'discarded' | 'already-settled' | 'not-found
  * no model or network call happens while the lock is held.
  *   1. lock the conversation row (scoped by tenant, bounded lock wait)
  *   2. read the mode and the message state
- *   3. write the AI reply only if the mode is still AI and the message is still PENDING
+ *   3. write the AI reply only if the mode is still AI, the conversation is still OPEN and the message is still PENDING
  *   4. commit
  * If staff took over in the meantime, the draft is discarded and recorded (IDs only, no body).
  */
@@ -27,10 +27,12 @@ export class ReplyWriter {
       if (!inbound || inbound.conversationId !== conversationId) return 'not-found';
       if (inbound.replyStatus !== 'PENDING') return 'already-settled';
 
-      if (locked.mode !== Mode.AI) {
+      // Staff took over, or closed the conversation (D-047), while the draft was being written.
+      if (locked.mode !== Mode.AI || locked.status !== ConversationStatus.OPEN) {
         await events.create(tx, tenantId, { conversationId, eventType: EventType.DRAFT_DISCARDED, messageId });
         await messages.settle(tx, tenantId, messageId, 'SKIPPED');
-        this.logger.log({ conversationId, messageId }, 'AI draft discarded: conversation is in HUMAN mode');
+        const reason = locked.status !== ConversationStatus.OPEN ? 'conversation is closed' : 'conversation is in HUMAN mode';
+        this.logger.log({ conversationId, messageId, reason }, 'AI draft discarded');
         return 'discarded';
       }
 

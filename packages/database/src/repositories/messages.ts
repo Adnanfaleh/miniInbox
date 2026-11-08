@@ -87,6 +87,19 @@ export const messages = {
     return count;
   },
 
+  /**
+   * Customer messages of this tenant still PENDING and created before `olderThan`, oldest first (bounded).
+   * Used by the worker's recovery sweep to find messages whose queue job was lost.
+   */
+  async listStalePending(tx: TenantTx, tenantId: string, olderThan: Date, take = 100): Promise<Pick<Message, 'id' | 'conversationId'>[]> {
+    return tx.message.findMany({
+      where: { tenantId, senderType: 'CUSTOMER', replyStatus: 'PENDING', createdAt: { lt: olderThan } },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, conversationId: true },
+      take: Math.min(Math.max(take, 1), MESSAGE_PAGE_MAX),
+    });
+  },
+
   /** True if an older customer message in the same conversation is still PENDING (arrival order, D-026). */
   async hasOlderPending(tx: TenantTx, tenantId: string, message: Pick<Message, 'id' | 'conversationId' | 'createdAt'>): Promise<boolean> {
     const older = await tx.message.findFirst({

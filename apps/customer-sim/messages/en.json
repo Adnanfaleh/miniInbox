@@ -1,0 +1,25 @@
+{
+  "Sim": {
+    "title": "Customer simulator",
+    "devBanner": "Development only: this page stands in for WhatsApp or Instagram. It sends through the webhook and stores nothing.",
+    "language": { "label": "Language", "en": "English", "ar": "العربية" },
+    "customers": "Customers",
+    "customer": "Customer {number}",
+    "tenants": "Businesses",
+    "chatTitle": "Customer {customer} chatting with",
+    "refresh": "Refresh",
+    "refreshHint": "Replies arrive in the background. Press Refresh to see them.",
+    "staffReplying": "A staff member is replying in this chat.",
+    "empty": "No messages yet. Write the first one below.",
+    "sender": { "you": "You", "assistant": "Assistant", "staff": "Staff", "notice": "Notice" },
+    "messageLabel": "Your message",
+    "placeholder": "Type a message…",
+    "send": "Send",
+    "sent": "Sent.",
+    "invalid": "The message could not be sent: check the text and try again.",
+    "failed": "The message could not be sent. Is the API running?",
+    "unavailable": "The API is not reachable. Start it and refresh this page.",
+    "threadUnavailable": "The conversation could not be loaded. Press Refresh to try again.",
+    "noTenants": "No businesses found. Run the seed first."
+  }
+}

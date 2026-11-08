@@ -13,6 +13,14 @@ export const tenants = {
   },
 
   /**
+   * Tenant IDs only, for the worker's recovery sweep, which then reads each tenant inside its own tenant context.
+   * No tenant data is read here.
+   */
+  async listIds(prisma: PrismaClient): Promise<string[]> {
+    return (await prisma.tenant.findMany({ select: { id: true }, orderBy: { id: 'asc' } })).map((t) => t.id);
+  },
+
+  /**
    * DEV STAND-IN ONLY: the one cross-tenant read, used by the development tenant picker (`GET /dev/tenants`).
    * IDs and names only. Real staff login replaces the picker.
    */

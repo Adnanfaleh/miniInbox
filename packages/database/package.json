@@ -21,8 +21,11 @@
     "seed": "node dist/seed.js"
   },
   "dependencies": {
+    "@mini-inbox/contracts": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "bullmq": "6.7.2",
+    "ioredis": "6.0.0",
     "pg": "8.23.1"
   },
   "devDependencies": {

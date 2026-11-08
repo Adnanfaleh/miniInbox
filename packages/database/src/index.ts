@@ -23,4 +23,4 @@ export type {
   Message,
   ConversationEvent,
 } from './generated/prisma/client.js';
-export { Mode, SenderType, EventType, LanguagePreference, Complexity, Intent, ReplyStatus } from './generated/prisma/enums.js';
+export { Mode, SenderType, EventType, LanguagePreference, Complexity, Intent, ReplyStatus, ConversationStatus } from './generated/prisma/enums.js';

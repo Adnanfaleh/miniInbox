@@ -16,6 +16,7 @@ import { PersonaCache } from '../src/pipeline/persona-cache.js';
 import { localDayAndMinute } from '../src/pipeline/working-hours.js';
 import { AiReplyHandler } from '../src/queues/ai-reply.handler.js';
 import { InboundMessageHandler } from '../src/queues/inbound-message.handler.js';
+import { PendingRecovery } from '../src/queues/pending-recovery.service.js';
 import { QueueWorkers } from '../src/queues/queue-workers.service.js';
 import { ReplyQueue } from '../src/queues/reply-queue.service.js';
 import { WorkerModule } from '../src/worker.module.js';
@@ -65,8 +66,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await Promise.all([inboundQueue.obliterate({ force: true }), replyQueue.obliterate({ force: true })]);
   await resetDatabase();
-  A = await createTenantFixture('A', 'fixture-person');
-  B = await createTenantFixture('B', 'fixture-person');
+  A = await createTenantFixture('A', '+966500000100');
+  B = await createTenantFixture('B', '+966500000100');
   await setHours(A.tenantId, 'open');
   await setHours(B.tenantId, 'open');
   const keys = await redis.keys('t:{*}:persona');
@@ -103,7 +104,7 @@ async function setHours(tenantId: string, state: 'open' | 'closed'): Promise<voi
   await owner.query(`UPDATE persona_configs SET working_days = 'SUN-SAT', work_start = $2, work_end = $3 WHERE tenant_id = $1`, [tenantId, start, end]);
 }
 
-const postWebhook = (tenantId: string, externalId: string, text: string, from = 'person-1') =>
+const postWebhook = (tenantId: string, externalId: string, text: string, from = '+966500000101') =>
   request(api.getHttpServer()).post(`/webhook/${tenantId}/message`).send({ externalId, from, text }).expect(202);
 
 async function waitFor<T>(fn: () => Promise<T | undefined | null | false>, timeoutMs = 10_000): Promise<T> {
@@ -233,12 +234,12 @@ describe('takeover and idempotency', () => {
   it('messages during HUMAN mode get no AI reply, also not after return to AI; new messages after return do', async () => {
     await owner.query(`UPDATE conversations SET mode = 'HUMAN' WHERE id = $1`, [A.conversationId]);
     startConsumers();
-    const during = await postWebhook(A.tenantId, 'human-1', 'are you there?', 'fixture-person');
+    const during = await postWebhook(A.tenantId, 'human-1', 'are you there?', '+966500000100');
     expect(await settled(during.body.messageId)).toBe('SKIPPED');
     expect(await replyTo(during.body.messageId)).toBeUndefined();
 
     await owner.query(`UPDATE conversations SET mode = 'AI' WHERE id = $1`, [A.conversationId]);
-    const after = await postWebhook(A.tenantId, 'human-2', 'back again', 'fixture-person');
+    const after = await postWebhook(A.tenantId, 'human-2', 'back again', '+966500000100');
     expect(await settled(after.body.messageId)).toBe('REPLIED');
     expect(await statusOf(during.body.messageId)).toBe('SKIPPED');
     expect(await replyTo(during.body.messageId)).toBeUndefined();
@@ -253,7 +254,7 @@ describe('takeover and idempotency', () => {
     mock.beforeReplyReturns = async () => {
       await owner.query(`UPDATE conversations SET mode = 'HUMAN' WHERE tenant_id = $1`, [A.tenantId]);
     };
-    const { body } = await postWebhook(A.tenantId, 'race-1', 'quick question', 'fixture-person');
+    const { body } = await postWebhook(A.tenantId, 'race-1', 'quick question', '+966500000100');
     expect(await settled(body.messageId)).toBe('SKIPPED');
     expect(await replyTo(body.messageId)).toBeUndefined();
     const events = await rows(`SELECT event_type, message_id FROM conversation_events WHERE event_type = 'DRAFT_DISCARDED'`);
@@ -268,10 +269,10 @@ describe('takeover and return through the API endpoints', () => {
   it('takeover disables AI replies; after return, new messages get AI replies and notices never reach the model', async () => {
     startConsumers();
     await act('takeover');
-    const during = await postWebhook(A.tenantId, 'api-1', 'need a person', 'fixture-person');
+    const during = await postWebhook(A.tenantId, 'api-1', 'need a person', '+966500000100');
     expect(await settled(during.body.messageId)).toBe('SKIPPED');
     await act('return-to-ai');
-    const after = await postWebhook(A.tenantId, 'api-2', 'thanks, one more question', 'fixture-person');
+    const after = await postWebhook(A.tenantId, 'api-2', 'thanks, one more question', '+966500000100');
     expect(await settled(after.body.messageId)).toBe('REPLIED');
     expect(await replyTo(during.body.messageId)).toBeUndefined();
     const replyCall = mock.calls.find((c) => c.kind === 'reply' && c.text.includes('one more question'))!;
@@ -282,10 +283,10 @@ describe('takeover and return through the API endpoints', () => {
   it('a message still queued when the conversation returns to AI is never answered by the AI', async () => {
     await act('takeover');
     // Consumers are not running yet: the job waits in the queue while the human is in charge.
-    const during = await postWebhook(A.tenantId, 'api-3', 'sent while human', 'fixture-person');
+    const during = await postWebhook(A.tenantId, 'api-3', 'sent while human', '+966500000100');
     await act('return-to-ai');
     startConsumers();
-    const after = await postWebhook(A.tenantId, 'api-4', 'after return', 'fixture-person');
+    const after = await postWebhook(A.tenantId, 'api-4', 'after return', '+966500000100');
     expect(await settled(after.body.messageId)).toBe('REPLIED');
     expect(await statusOf(during.body.messageId)).toBe('SKIPPED');
     expect(await replyTo(during.body.messageId)).toBeUndefined();
@@ -295,7 +296,7 @@ describe('takeover and return through the API endpoints', () => {
 describe('persona edits', () => {
   it('after PUT /persona, the next AI reply uses the new persona, not the cached old one', async () => {
     startConsumers();
-    const first = await postWebhook(A.tenantId, 'p-1', 'first question', 'fixture-person');
+    const first = await postWebhook(A.tenantId, 'p-1', 'first question', '+966500000100');
     await settled(first.body.messageId);
     expect(await redis.exists(personaCacheKey(A.tenantId))).toBe(1); // the old persona is cached
 
@@ -321,7 +322,7 @@ describe('persona edits', () => {
       .expect(200);
     await setHours(A.tenantId, 'open');
 
-    const second = await postWebhook(A.tenantId, 'p-2', 'second question', 'fixture-person');
+    const second = await postWebhook(A.tenantId, 'p-2', 'second question', '+966500000100');
     expect(await settled(second.body.messageId)).toBe('REPLIED');
     const call = mock.calls.find((c) => c.kind === 'reply' && c.text.split('\n').at(-1)!.includes('second question'))!;
     expect(call.system).toContain('brand-new-tone');
@@ -421,5 +422,98 @@ describe('failures, priority and order', () => {
     expect(await replies.promoteAged()).toBe(1);
     const queued = await replyQueue.getJob(inboundMessageJobId(A.tenantId, msg));
     expect(queued!.priority).toBe(REPLY_PRIORITY.simple);
+  });
+});
+
+describe('recovery sweep: messages whose queue job was lost', () => {
+  // The sweep treats a PENDING message as lost when it is older than recoverAfterMs and has no live job.
+  const LATER = () => Date.now() + DEFAULT_WORKER_SETTINGS.recoverAfterMs + 1000;
+
+  it('re-queues a lost message under its own tenant, and the worker then answers it', async () => {
+    const lostA = await pendingMessage(A, A.conversationId, 'stored, never queued');
+    const lostB = await pendingMessage(B, B.conversationId, 'stored, never queued in B');
+    const recovery = worker.get(PendingRecovery);
+    expect(await recovery.sweep(Date.now())).toBe(0); // too recent: may still be on its way
+    expect(await recovery.sweep(LATER())).toBe(2);
+    const jobA = await inboundQueue.getJob(inboundMessageJobId(A.tenantId, lostA));
+    const jobB = await inboundQueue.getJob(inboundMessageJobId(B.tenantId, lostB));
+    expect(jobA!.data).toEqual(job(A, A.conversationId, lostA));
+    expect(jobB!.data).toEqual(job(B, B.conversationId, lostB));
+    startConsumers();
+    expect(await settled(lostA)).toBe('REPLIED');
+    expect(await settled(lostB)).toBe('REPLIED');
+  });
+
+  it('leaves a message alone while it still has a live job, and never queues it twice', async () => {
+    const msg = await pendingMessage(A, A.conversationId, 'queued normally');
+    await inboundQueue.add('inbound-message', job(A, A.conversationId, msg), { jobId: inboundMessageJobId(A.tenantId, msg) });
+    const recovery = worker.get(PendingRecovery);
+    expect(await recovery.sweep(LATER())).toBe(0);
+    expect((await inboundQueue.getJobs(['waiting', 'prioritized', 'delayed'])).length).toBe(1);
+  });
+
+  it('unblocks a conversation: a later message waiting behind a lost one is answered after the sweep', async () => {
+    const lost = await pendingMessage(A, A.conversationId, 'lost first message');
+    const later = await pendingMessage(A, A.conversationId, 'second message');
+    await worker.get(ReplyQueue).add(job(A, A.conversationId, later), REPLY_PRIORITY.simple);
+    startConsumers();
+    await new Promise((r) => setTimeout(r, 400)); // the later message keeps waiting behind the lost one
+    expect((await rows(`SELECT reply_status FROM messages WHERE id = $1`, [later]))[0].reply_status).toBe('PENDING');
+    expect(await worker.get(PendingRecovery).sweep(LATER())).toBe(1);
+    expect(await settled(lost)).toBe('REPLIED');
+    expect(await settled(later)).toBe('REPLIED');
+    const [r1, r2] = [await replyTo(lost), await replyTo(later)];
+    expect(new Date(r1.created_at).getTime()).toBeLessThan(new Date(r2.created_at).getTime());
+  });
+
+  it('ignores settled messages and seeded history (no reply status)', async () => {
+    const done = await pendingMessage(A, A.conversationId, 'already answered');
+    await owner.query(`UPDATE messages SET reply_status = 'REPLIED' WHERE id = $1`, [done]);
+    // The fixture's own customer message has reply_status NULL (history).
+    expect(await worker.get(PendingRecovery).sweep(LATER())).toBe(0);
+  });
+});
+
+describe('closed conversations (lifecycle)', () => {
+  it('staff close while the model is answering: the waiting message is skipped, no AI reply is stored', async () => {
+    startConsumers();
+    mock.beforeReplyReturns = async () => {
+      await request(api.getHttpServer()).post(`/conversations/${A.conversationId}/close`).set('x-tenant-id', A.tenantId).expect(200);
+    };
+    const { body } = await postWebhook(A.tenantId, 'close-race-1', 'quick question', '+966500000100');
+    expect(await settled(body.messageId)).toBe('SKIPPED');
+    await new Promise((r) => setTimeout(r, 200)); // let the reply stage finish
+    expect(await replyTo(body.messageId)).toBeUndefined();
+  });
+
+  it('the reply writer re-checks the status under the lock: a draft for a closed conversation is discarded', async () => {
+    startConsumers();
+    mock.beforeReplyReturns = async () => {
+      // Status changes but the message is still PENDING: only the writer's own check can stop the reply.
+      await owner.query(`UPDATE conversations SET status = 'CLOSED' WHERE id = $1`, [A.conversationId]);
+    };
+    const { body } = await postWebhook(A.tenantId, 'close-race-2', 'another question', '+966500000100');
+    expect(await settled(body.messageId)).toBe('SKIPPED');
+    expect(await replyTo(body.messageId)).toBeUndefined();
+    const discarded = await rows(`SELECT message_id FROM conversation_events WHERE event_type = 'DRAFT_DISCARDED'`);
+    expect(discarded).toEqual([{ message_id: body.messageId }]);
+  });
+
+  it('a queued job for a closed conversation is skipped without a model call', async () => {
+    const msg = await pendingMessage(A, A.conversationId, 'arrived just before closing');
+    await owner.query(`UPDATE conversations SET status = 'CLOSED' WHERE id = $1`, [A.conversationId]);
+    await inboundQueue.add('inbound-message', job(A, A.conversationId, msg), { jobId: inboundMessageJobId(A.tenantId, msg) });
+    startConsumers();
+    expect(await settled(msg)).toBe('SKIPPED');
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  it('after the customer reopens it, the new message gets an AI reply', async () => {
+    startConsumers();
+    await request(api.getHttpServer()).post(`/conversations/${A.conversationId}/close`).set('x-tenant-id', A.tenantId).expect(200);
+    const { body } = await postWebhook(A.tenantId, 'reopen-1', 'back with a question', '+966500000100');
+    expect(body.conversationId).toBe(A.conversationId);
+    expect(await settled(body.messageId)).toBe('REPLIED');
+    expect((await replyTo(body.messageId)).sender_type).toBe('AI');
   });
 });

@@ -5,7 +5,8 @@ import { DevBanner } from '../components/DevBanner';
 import { Header } from '../components/Header';
 import { api } from '../lib/api';
 import { directionOf, isLocale } from '../lib/locale';
-import { currentTenantId } from '../lib/tenant';
+import { currentSession } from '../lib/tenant';
+import '@mini-inbox/ui/theme.css';
 import './globals.css';
 
 export async function generateMetadata() {
@@ -13,12 +14,12 @@ export async function generateMetadata() {
   return { title: t('title') };
 }
 
-/** DEV STAND-IN: the tenant's display name comes from the development tenant list. */
-async function tenantName(): Promise<string | null> {
-  const id = await currentTenantId();
-  if (!id) return null;
+/** DEV STAND-IN: the role from the signed session; the tenant's display name from the development tenant list. */
+async function headerState() {
+  const session = await currentSession();
+  if (!session?.tenantId) return { role: session?.role ?? null, tenantName: null };
   const list = await api.devTenants().catch(() => []);
-  return list.find((t) => t.id === id)?.name ?? null;
+  return { role: session.role, tenantName: list.find((t) => t.id === session.tenantId)?.name ?? null };
 }
 
 /** `lang` and `dir` follow the active locale, so Arabic renders right-to-left and English left-to-right. */
@@ -30,7 +31,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <NextIntlClientProvider>
           <DevBanner />
-          <Header tenantName={await tenantName()} />
+          <Header {...await headerState()} />
           <main className="main">{children}</main>
         </NextIntlClientProvider>
       </body>

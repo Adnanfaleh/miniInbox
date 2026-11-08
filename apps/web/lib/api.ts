@@ -5,6 +5,8 @@ import {
   type ConversationDetailResponse,
   type ConversationListResponse,
   type ConversationModeState,
+  type ConversationStatus,
+  type ConversationStatusState,
   type ManualReplyCreated,
   type PersonaInput,
   type PersonaResponse,
@@ -43,10 +45,12 @@ async function call<T>(path: string, init: RequestInit = {}, { withTenant = true
 export const api = {
   /** DEV STAND-IN: tenant picker list (no tenant header). */
   devTenants: () => call<{ id: string; name: string }[]>('/dev/tenants', {}, { withTenant: false }),
-  conversations: (cursor?: string) => call<ConversationListResponse>(`/conversations?limit=50${cursor ? `&cursor=${cursor}` : ''}`),
+  conversations: (status: ConversationStatus = 'OPEN', cursor?: string) =>
+    call<ConversationListResponse>(`/conversations?limit=50&status=${status}${cursor ? `&cursor=${cursor}` : ''}`),
   conversation: (id: string) => call<ConversationDetailResponse>(`/conversations/${id}?limit=100`),
   takeover: (id: string) => call<ConversationModeState>(`/conversations/${id}/takeover`, { method: 'POST' }),
   returnToAi: (id: string) => call<ConversationModeState>(`/conversations/${id}/return-to-ai`, { method: 'POST' }),
+  close: (id: string) => call<ConversationStatusState>(`/conversations/${id}/close`, { method: 'POST' }),
   reply: (id: string, text: string) => call<ManualReplyCreated>(`/conversations/${id}/reply`, { method: 'POST', body: JSON.stringify({ text }) }),
   persona: () => call<PersonaResponse>('/persona'),
   savePersona: (input: PersonaInput) => call<PersonaResponse>('/persona', { method: 'PUT', body: JSON.stringify(input) }),

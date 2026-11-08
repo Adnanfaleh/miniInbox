@@ -21,6 +21,18 @@ export function inboundMessageJobId(tenantId: string, messageId: string): string
   return `${tenantId}.${messageId}`;
 }
 
+/**
+ * Explicit options for every inbound-message job (webhook and seed): bounded retries, exponential backoff,
+ * retention of failed jobs. Failed jobs are the dead-letter record. They hold IDs only, and expire after 7 days.
+ * Plain object so this package needs no BullMQ dependency; it matches BullMQ's `JobsOptions`.
+ */
+export const INBOUND_MESSAGE_JOB_OPTIONS = {
+  attempts: 5,
+  backoff: { type: 'exponential', delay: 2000 },
+  removeOnComplete: { age: 24 * 3600, count: 1000 },
+  removeOnFail: { age: 7 * 24 * 3600 },
+} as const;
+
 /** Priority queue for AI replies (stage 2). Fed by the inbound-message worker after classification. */
 export const AI_REPLY_QUEUE = 'ai-reply';
 export const AI_REPLY_JOB = 'ai-reply';

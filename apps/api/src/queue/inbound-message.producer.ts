@@ -1,23 +1,15 @@
 import { Inject, Injectable, Logger, ServiceUnavailableException, type OnModuleDestroy } from '@nestjs/common';
 import {
   INBOUND_MESSAGE_JOB,
+  INBOUND_MESSAGE_JOB_OPTIONS,
   INBOUND_MESSAGE_QUEUE,
   inboundMessageJobId,
   inboundMessageJobSchema,
   type InboundMessageJob,
 } from '@mini-inbox/contracts';
-import { Queue, type JobsOptions } from 'bullmq';
+import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
 import { API_ENV, type ApiEnv } from '../config/api-env.js';
-
-/** Explicit job options (bullmq-specialist): bounded retries, exponential backoff, retention of failed jobs. */
-export const INBOUND_MESSAGE_JOB_OPTIONS: JobsOptions = {
-  attempts: 5,
-  backoff: { type: 'exponential', delay: 2000 },
-  removeOnComplete: { age: 24 * 3600, count: 1000 },
-  // Failed jobs are the dead-letter record. They hold IDs only, and expire after 7 days.
-  removeOnFail: { age: 7 * 24 * 3600 },
-};
 
 /** Upper bound for one enqueue, so an unavailable Redis fails the webhook fast (503) instead of hanging. */
 const ENQUEUE_TIMEOUT_MS = 3000;

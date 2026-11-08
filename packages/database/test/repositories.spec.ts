@@ -71,6 +71,10 @@ describe('tenants (global)', () => {
     expect(await tenants.findById(prisma, '00000000-0000-4000-8000-000000000000')).toBeNull();
     expect(await tenants.findById(prisma, 'nope')).toBeNull();
   });
+
+  it('listIds returns tenant IDs only', async () => {
+    expect((await tenants.listIds(prisma)).sort()).toEqual([A.tenantId, B.tenantId].sort());
+  });
 });
 
 describe('customers', () => {
@@ -88,11 +92,23 @@ describe('customers', () => {
     expect([A.customerId, B.customerId]).not.toContain(fresh.id);
     await expectAUnchanged();
   });
+
+  it('findByExternalRef: each tenant finds only its own record for the same address, and never creates one', async () => {
+    expect((await asB((tx) => customers.findByExternalRef(tx, B.tenantId, 'person-1')))?.id).toBe(B.customerId);
+    expect((await asA((tx) => customers.findByExternalRef(tx, A.tenantId, 'person-1')))?.id).toBe(A.customerId);
+    expect(await asB((tx) => customers.findByExternalRef(tx, B.tenantId, 'nobody'))).toBeNull();
+    await expectAUnchanged();
+  });
 });
 
 describe('conversations', () => {
   it('findById: B cannot read A\'s conversation', async () => {
     expect(await asB((tx) => conversations.findById(tx, B.tenantId, A.conversationId))).toBeNull();
+  });
+
+  it('findByCustomer: B cannot read A\'s conversation through A\'s customer ID', async () => {
+    expect(await asB((tx) => conversations.findByCustomer(tx, B.tenantId, A.customerId))).toBeNull();
+    expect((await asA((tx) => conversations.findByCustomer(tx, A.tenantId, A.customerId)))?.id).toBe(A.conversationId);
   });
 
   it('findOrCreateForCustomer: B cannot attach a conversation to A\'s customer', async () => {
@@ -118,11 +134,34 @@ describe('conversations', () => {
 
   it('lockConversation: B cannot lock A\'s conversation; A gets its row and mode', async () => {
     expect(await asB((tx) => lockConversation(tx, B.tenantId, A.conversationId))).toBeNull();
-    expect(await asA((tx) => lockConversation(tx, A.tenantId, A.conversationId))).toEqual({ id: A.conversationId, mode: 'AI' });
+    expect(await asA((tx) => lockConversation(tx, A.tenantId, A.conversationId))).toEqual({ id: A.conversationId, mode: 'AI', status: 'OPEN' });
+  });
+
+  it('setStatus: B cannot close A\'s conversation; A can', async () => {
+    expect(await asB((tx) => conversations.setStatus(tx, B.tenantId, A.conversationId, 'CLOSED'))).toBe(0);
+    await expectAUnchanged();
+    expect(await asA((tx) => conversations.setStatus(tx, A.tenantId, A.conversationId, 'CLOSED'))).toBe(1);
+  });
+
+  it('listSummaries: the status filter applies inside the tenant only', async () => {
+    await owner.query(`UPDATE conversations SET status = 'CLOSED' WHERE id = $1`, [A.conversationId]);
+    expect((await asA((tx) => conversations.listSummaries(tx, A.tenantId, { status: 'CLOSED' }))).map((c) => c.id)).toEqual([A.conversationId]);
+    expect(await asA((tx) => conversations.listSummaries(tx, A.tenantId, { status: 'OPEN' }))).toEqual([]);
+    expect(await asB((tx) => conversations.listSummaries(tx, B.tenantId, { status: 'CLOSED' }))).toEqual([]);
   });
 });
 
 describe('messages', () => {
+  it('listStalePending: each tenant sees only its own old PENDING customer messages', async () => {
+    await owner.query(`UPDATE messages SET reply_status = 'PENDING', created_at = now() - interval '1 hour' WHERE id = ANY($1::uuid[])`, [
+      [A.messageId, B.messageId],
+    ]);
+    const cutoff = new Date();
+    expect((await asB((tx) => messages.listStalePending(tx, B.tenantId, cutoff))).map((m) => m.id)).toEqual([B.messageId]);
+    expect((await asA((tx) => messages.listStalePending(tx, A.tenantId, cutoff))).map((m) => m.id)).toEqual([A.messageId]);
+    expect(await asA((tx) => messages.listStalePending(tx, A.tenantId, new Date(Date.now() - 2 * 3600_000)))).toEqual([]);
+  });
+
   it('findById / findByExternalId / findReplyTo: B finds nothing of A\'s', async () => {
     await asB(async (tx) => {
       expect(await messages.findById(tx, B.tenantId, A.messageId)).toBeNull();
@@ -183,6 +222,15 @@ describe('persona and knowledge (AI context sources)', () => {
 });
 
 describe('events', () => {
+  it('listLifecycle: only CLOSED / REOPENED events, and B gets nothing of A\'s', async () => {
+    await owner.query(`INSERT INTO conversation_events (tenant_id, conversation_id, event_type) VALUES ($1, $2, 'CLOSED'), ($1, $2, 'REOPENED')`, [
+      A.tenantId,
+      A.conversationId,
+    ]);
+    expect((await asA((tx) => events.listLifecycle(tx, A.tenantId, A.conversationId))).map((e) => e.eventType).sort()).toEqual(['CLOSED', 'REOPENED']);
+    expect(await asB((tx) => events.listLifecycle(tx, B.tenantId, A.conversationId))).toEqual([]);
+  });
+
   it('create: B cannot record an event on A\'s conversation or referencing A\'s message', async () => {
     await expect(asB((tx) => events.create(tx, B.tenantId, { conversationId: A.conversationId, eventType: 'TAKEOVER' }))).rejects.toBeInstanceOf(
       RecordNotFoundError,

@@ -5,12 +5,23 @@
  * and it bypasses row-level security on purpose. Composite foreign keys still keep every row inside its tenant.
  * Idempotent: fixed tenant IDs and fixed external IDs, all written with upserts.
  *
- * Only customer messages are seeded (applicant decision). They are stored as history (reply_status NULL):
- * not waiting, never queued, so they don't block new messages. Every AI reply comes from the real worker.
- * Re-running the seed resets the two demo personas and their knowledge lists.
+ * Only customer messages are seeded (applicant decision). In each conversation the last customer message is
+ * PENDING and is queued on `inbound-message` after the commit, so the real worker answers it. Earlier messages are
+ * history (reply_status NULL) that the worker reads as context. Nothing AI-written is seeded.
+ * A message the worker has already settled (replied, skipped, failed) is never queued again, so re-running the
+ * seed never causes a second reply. Re-running the seed resets the two demo personas and their knowledge lists.
  */
 import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  INBOUND_MESSAGE_JOB,
+  INBOUND_MESSAGE_JOB_OPTIONS,
+  INBOUND_MESSAGE_QUEUE,
+  inboundMessageJobId,
+  type InboundMessageJob,
+} from '@mini-inbox/contracts';
+import { Queue } from 'bullmq';
+import { Redis } from 'ioredis';
 import { createPrismaClient } from './client.js';
 import type { PrismaClient } from './generated/prisma/client.js';
 
@@ -167,8 +178,15 @@ const TENANTS: TenantSeed[] = [
   },
 ];
 
-/** Writes the demo data. Safe to run repeatedly. Returns the number of tenants seeded. */
-export async function seed(owner: PrismaClient, now: Date = new Date()): Promise<number> {
+export interface SeedResult {
+  tenants: number;
+  /** Seeded messages still waiting for the worker. IDs only, ready to queue. */
+  pending: InboundMessageJob[];
+}
+
+/** Writes the demo data. Safe to run repeatedly. Queueing the pending messages is the caller's job (see `main`). */
+export async function seed(owner: PrismaClient, now: Date = new Date()): Promise<SeedResult> {
+  const pending: InboundMessageJob[] = [];
   for (const t of TENANTS) {
     await owner.$transaction(async (tx) => {
       await tx.tenant.upsert({ where: { id: t.id }, create: { id: t.id, name: t.name, timeZone: t.timeZone }, update: { name: t.name, timeZone: t.timeZone } });
@@ -189,8 +207,9 @@ export async function seed(owner: PrismaClient, now: Date = new Date()): Promise
           create: { tenantId: t.id, customerId: customer.id, createdAt: new Date(now.getTime() - minute * 60_000) },
           update: {},
         });
-        for (const m of c.messages) {
-          await tx.message.upsert({
+        for (const [index, m] of c.messages.entries()) {
+          const isLast = index === c.messages.length - 1;
+          let row = await tx.message.upsert({
             where: { tenantId_externalId: { tenantId: t.id, externalId: m.externalId } },
             create: {
               tenantId: t.id,
@@ -198,18 +217,49 @@ export async function seed(owner: PrismaClient, now: Date = new Date()): Promise
               senderType: 'CUSTOMER',
               externalId: m.externalId,
               body: m.text,
-              replyStatus: null,
+              replyStatus: isLast ? 'PENDING' : null,
               createdAt: new Date(now.getTime() - minute * 60_000),
             },
             update: {},
           });
+          // A database seeded before queueing existed has the last message as never-queued history (NULL).
+          // Only NULL is upgraded: a settled message (REPLIED, SKIPPED, FAILED) is left alone.
+          if (isLast && row.replyStatus === null) {
+            row = await tx.message.update({ where: { tenantId_id: { tenantId: t.id, id: row.id } }, data: { replyStatus: 'PENDING' } });
+          }
+          if (isLast && row.replyStatus === 'PENDING') {
+            pending.push({ tenantId: t.id, conversationId: row.conversationId, messageId: row.id });
+          }
           minute -= 5;
         }
         minute -= 10;
       }
     });
   }
-  return TENANTS.length;
+  return { tenants: TENANTS.length, pending };
+}
+
+/**
+ * Adds the pending seeded messages to the `inbound-message` queue with the webhook's job ID and options.
+ * Re-adding a job ID that is still queued is a no-op. Fails fast if Redis is unreachable; the rows stay
+ * PENDING, so running the seed again queues them.
+ */
+async function enqueue(jobs: InboundMessageJob[], redisUrl: string, prefix: string): Promise<void> {
+  const connection = new Redis(redisUrl, { lazyConnect: true, connectTimeout: 2000, maxRetriesPerRequest: 1, retryStrategy: () => null });
+  connection.on('error', () => undefined); // reported by connect() below
+  try {
+    await connection.connect();
+    const queue = new Queue<InboundMessageJob>(INBOUND_MESSAGE_QUEUE, { connection, prefix });
+    try {
+      for (const job of jobs) {
+        await queue.add(INBOUND_MESSAGE_JOB, job, { ...INBOUND_MESSAGE_JOB_OPTIONS, jobId: inboundMessageJobId(job.tenantId, job.messageId) });
+      }
+    } finally {
+      await queue.close();
+    }
+  } finally {
+    connection.disconnect();
+  }
 }
 
 async function main(): Promise<void> {
@@ -217,13 +267,23 @@ async function main(): Promise<void> {
   if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
   const url = process.env.MIGRATION_DATABASE_URL;
   if (!url) throw new Error('MIGRATION_DATABASE_URL is not set (see .env.example)');
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) throw new Error('REDIS_URL is not set (see .env.example)');
   const owner = createPrismaClient(url);
+  let result: SeedResult;
   try {
-    const count = await seed(owner);
-    console.log(`Seeded ${count} demo tenants: Riyadh Coffee House (${SEED_TENANTS.coffee}), London Dental Clinic (${SEED_TENANTS.clinic}).`);
+    result = await seed(owner);
   } finally {
     await owner.$disconnect();
   }
+  console.log(`Seeded ${result.tenants} demo tenants: Riyadh Coffee House (${SEED_TENANTS.coffee}), London Dental Clinic (${SEED_TENANTS.clinic}).`);
+  try {
+    await enqueue(result.pending, redisUrl, process.env.QUEUE_PREFIX || 'mini-inbox');
+  } catch (err) {
+    console.error(`Queueing seeded messages failed (${(err as NodeJS.ErrnoException).code ?? (err as Error).name}). Is Redis running? Run the seed again to retry.`);
+    throw err;
+  }
+  console.log(`Queued ${result.pending.length} seeded customer messages for the worker.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

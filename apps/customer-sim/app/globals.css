@@ -1,0 +1,20 @@
+/* Customer simulator layout only. Colours, controls, header, panels and bubbles come from @mini-inbox/ui/theme.css
+   (shared with the tenant dashboard). Logical properties only, so Arabic RTL and English LTR flip from <html dir>. */
+h2 { font-size: 0.95rem; color: var(--muted); margin-block: 0.75rem 0.5rem; }
+.header { justify-content: space-between; }
+.row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; }
+
+.sim { display: grid; grid-template-columns: minmax(14rem, 18rem) 1fr; gap: 1rem; align-items: start; }
+@media (max-width: 760px) { .sim { grid-template-columns: 1fr; } }
+.choices { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.choice { display: flex; flex-direction: column; padding-block: 0.45rem; padding-inline: 0.7rem; border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; }
+.choice[aria-current='page'] { border-color: var(--accent); background: var(--accent-tint); }
+
+/* Customer view: own messages on the end side, replies on the start side. */
+.messages { list-style: none; margin-block: 0.75rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.bubble { max-inline-size: 75%; }
+.bubble.sender-CUSTOMER { align-self: flex-end; }
+.bubble.sender-AI, .bubble.sender-HUMAN { align-self: flex-start; }
+.bubble p { white-space: pre-wrap; }
+.composer { display: flex; flex-direction: column; gap: 0.4rem; border-block-start: 1px solid var(--border); padding-block-start: 0.75rem; }
+.composer textarea { padding: 0.5rem; resize: vertical; }

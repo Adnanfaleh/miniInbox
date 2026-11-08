@@ -9,10 +9,11 @@ import { RedisService } from '../infra/redis.service.js';
 import { AiReplyHandler } from './ai-reply.handler.js';
 import { InboundMessageHandler } from './inbound-message.handler.js';
 import { CLS_JOB_ID, CLS_TENANT_ID } from './job-context.js';
+import { PendingRecovery } from './pending-recovery.service.js';
 import { ReplyQueue } from './reply-queue.service.js';
 
 /**
- * Runs the two consumers, the aging sweep and final-failure handling.
+ * Runs the two consumers, the aging sweep, the recovery sweep for lost messages, and final-failure handling.
  * - Each job runs inside its own async context carrying tenantId and jobId, so every log line has them.
  * - A job that fails for good marks its message FAILED, so later messages in that conversation aren't blocked.
  * - Shutdown (SIGTERM/SIGINT via Nest shutdown hooks) waits for running jobs, then closes connections.
@@ -22,11 +23,13 @@ export class QueueWorkers implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(QueueWorkers.name);
   private readonly workers: Worker[] = [];
   private agingTimer?: NodeJS.Timeout;
+  private recoveryTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly inbound: InboundMessageHandler,
     private readonly reply: AiReplyHandler,
     private readonly replyQueue: ReplyQueue,
+    private readonly recovery: PendingRecovery,
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly cls: ClsService,
@@ -49,6 +52,9 @@ export class QueueWorkers implements OnApplicationBootstrap, OnModuleDestroy {
     this.agingTimer = setInterval(() => {
       this.replyQueue.promoteAged().catch((err: Error) => this.logger.warn({ error: err.name }, 'aging sweep failed'));
     }, this.settings.agingSweepMs);
+    const recover = () => this.recovery.sweep().catch((err: Error) => this.logger.warn({ error: err.name }, 'recovery sweep failed'));
+    void recover();
+    this.recoveryTimer = setInterval(() => void recover(), this.settings.recoverySweepMs);
     this.logger.log({ concurrency: this.env.WORKER_CONCURRENCY }, 'queue consumers started');
   }
 
@@ -96,6 +102,7 @@ export class QueueWorkers implements OnApplicationBootstrap, OnModuleDestroy {
 
   async onModuleDestroy(): Promise<void> {
     if (this.agingTimer) clearInterval(this.agingTimer);
+    if (this.recoveryTimer) clearInterval(this.recoveryTimer);
     await Promise.all(this.workers.map((w) => w.close()));
     this.workers.length = 0;
   }

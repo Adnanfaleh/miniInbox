@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs
 import { inboundMessageSchema, type InboundMessage, type InboundMessageAccepted } from '@mini-inbox/contracts';
 import { ZodValidationPipe } from '../common/zod-validation.pipe.js';
 import { TenantFromWebhookUrl } from '../tenant/tenant-from-webhook-url.decorator.js';
+import { WebhookRateLimitGuard } from './webhook-rate-limit.guard.js';
 import { WebhookTenantGuard } from './webhook-tenant.guard.js';
 import { WebhookService } from './webhook.service.js';
 
@@ -17,7 +18,8 @@ export class WebhookController {
   @Post(':tenantId/message')
   @HttpCode(HttpStatus.ACCEPTED)
   @TenantFromWebhookUrl()
-  @UseGuards(WebhookTenantGuard)
+  // Order matters: verify the tenant first, then count against that tenant's rate limit.
+  @UseGuards(WebhookTenantGuard, WebhookRateLimitGuard)
   receive(@Body(new ZodValidationPipe(inboundMessageSchema)) body: InboundMessage): Promise<InboundMessageAccepted> {
     return this.webhook.receive(body);
   }

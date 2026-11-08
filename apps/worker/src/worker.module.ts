@@ -10,6 +10,7 @@ import { ReplyWriter } from './pipeline/reply-writer.js';
 import { AiReplyHandler } from './queues/ai-reply.handler.js';
 import { InboundMessageHandler } from './queues/inbound-message.handler.js';
 import { CLS_JOB_ID, CLS_TENANT_ID } from './queues/job-context.js';
+import { PendingRecovery } from './queues/pending-recovery.service.js';
 import { QueueWorkers } from './queues/queue-workers.service.js';
 import { ReplyQueue } from './queues/reply-queue.service.js';
 
@@ -42,6 +43,7 @@ import { ReplyQueue } from './queues/reply-queue.service.js';
     ReplyQueue,
     InboundMessageHandler,
     AiReplyHandler,
+    PendingRecovery,
     QueueWorkers,
   ],
 })

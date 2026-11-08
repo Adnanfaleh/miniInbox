@@ -88,7 +88,7 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
-  apps/web:
+  apps/customer-sim:
     dependencies:
       '@mini-inbox/config':
         specifier: workspace:*
@@ -96,6 +96,9 @@ importers:
       '@mini-inbox/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@mini-inbox/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       next:
         specifier: 16.4.5
         version: 16.4.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -121,6 +124,46 @@ importers:
       '@types/react-dom':
         specifier: 19.3.0
         version: 19.3.0(@types/react@19.3.0)
+
+  apps/web:
+    dependencies:
+      '@mini-inbox/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@mini-inbox/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@mini-inbox/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      next:
+        specifier: 16.4.5
+        version: 16.4.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      next-intl:
+        specifier: 4.14.9
+        version: 4.14.9(@swc/helpers@0.5.23)(@types/react@19.3.0)(next@16.4.5(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: 19.3.1
+        version: 19.3.1(react@19.3.1)
+      server-only:
+        specifier: 0.0.1
+        version: 0.0.1
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
   apps/worker:
     dependencies:
@@ -212,12 +255,21 @@ importers:
 
   packages/database:
     dependencies:
+      '@mini-inbox/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@prisma/adapter-pg':
         specifier: 7.10.1
         version: 7.10.1
       '@prisma/client':
         specifier: 7.10.1
         version: 7.10.1(prisma@7.10.1(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3))(typescript@6.0.3)
+      bullmq:
+        specifier: 6.7.2
+        version: 6.7.2(ioredis@6.0.0)(pg@8.23.1)
+      ioredis:
+        specifier: 6.0.0
+        version: 6.0.0
       pg:
         specifier: 8.23.1
         version: 8.23.1
@@ -231,6 +283,8 @@ importers:
       vitest:
         specifier: 5.1.0
         version: 5.1.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
+
+  packages/ui: {}
 
 packages:
 

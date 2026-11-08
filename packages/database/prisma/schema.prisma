@@ -10,7 +10,7 @@
 //   from contact data (D-001).
 // - Row-level security is added by hand in the `rls` migration. Prisma can't express it.
 //
-// BLOCKED, deliberately absent: conversations.status (agent lifecycle, B1) and any classification column (B3).
+// Lifecycle: conversations.status (OPEN/CLOSED, D-047). Classification: messages.complexity and intent (D-023, D-032).
 
 generator client {
   provider               = "prisma-client"
@@ -37,11 +37,19 @@ enum SenderType {
   SYSTEM
 }
 
+/// Conversation lifecycle (D-047). Staff close a conversation; the customer's next message reopens it in AI mode.
+enum ConversationStatus {
+  OPEN
+  CLOSED
+}
+
 enum EventType {
   TAKEOVER
   RETURN_TO_AI
   DRAFT_DISCARDED
   AI_REPLY_SENT
+  CLOSED
+  REOPENED
 }
 
 /// Classification of a customer message (D-023). Drives reply priority.
@@ -151,13 +159,16 @@ model Customer {
 }
 
 /// One conversation per customer per tenant (D-012). Listed by created_at (D-015).
+/// Closed by staff and reopened (same row, AI mode) by the customer's next message (D-047).
 model Conversation {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId      String    @map("tenant_id") @db.Uuid
-  customerId    String    @map("customer_id") @db.Uuid
-  mode          Mode      @default(AI)
-  modeChangedAt DateTime? @map("mode_changed_at") @db.Timestamptz(3)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String             @map("tenant_id") @db.Uuid
+  customerId      String             @map("customer_id") @db.Uuid
+  mode            Mode               @default(AI)
+  modeChangedAt   DateTime?          @map("mode_changed_at") @db.Timestamptz(3)
+  status          ConversationStatus @default(OPEN)
+  statusChangedAt DateTime?          @map("status_changed_at") @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
 
   tenant   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   customer Customer            @relation(fields: [tenantId, customerId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -167,6 +178,8 @@ model Conversation {
   @@unique([tenantId, id])
   @@unique([tenantId, customerId])
   @@index([tenantId, createdAt])
+  /// The dashboard's Open / Closed tabs.
+  @@index([tenantId, status, createdAt])
   @@map("conversations")
 }
 

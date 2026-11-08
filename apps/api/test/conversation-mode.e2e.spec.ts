@@ -148,3 +148,68 @@ describe('locking', () => {
     expect(await modeOf(A.conversationId)).toBe('AI');
   });
 });
+
+describe('close and reopen (conversation lifecycle)', () => {
+  const close = (tenantId: string, conversationId: string) => http().post(`/conversations/${conversationId}/close`).set(TENANT_HEADER, tenantId);
+  const statusOf = async (id: string) => (await rows(`SELECT status FROM conversations WHERE id = $1`, [id]))[0].status;
+  const webhook = (tenantId: string, externalId: string, from: string, text: string) =>
+    http().post(`/webhook/${tenantId}/message`).send({ externalId, from, text }).expect(202);
+  const list = async (tenantId: string, status?: string) =>
+    (await http().get(`/conversations${status ? `?status=${status}` : ''}`).set(TENANT_HEADER, tenantId).expect(200)).body.items.map((c: { id: string }) => c.id);
+
+  it('tenant B cannot close A\'s conversation (404, A unchanged)', async () => {
+    const before = await snapshot(A.tenantId);
+    await close(B.tenantId, A.conversationId).expect(404);
+    expect(await snapshot(A.tenantId)).toEqual(before);
+  });
+
+  it('close: CLOSED status and event, waiting messages skipped, no notice to the customer; closing again changes nothing', async () => {
+    await owner.query(`UPDATE messages SET reply_status = 'PENDING' WHERE id = $1`, [A.messageId]);
+    const res = await close(A.tenantId, A.conversationId).expect(200);
+    expect(res.body).toMatchObject({ conversationId: A.conversationId, status: 'CLOSED' });
+    expect(await statusOf(A.conversationId)).toBe('CLOSED');
+    expect((await rows(`SELECT reply_status FROM messages WHERE id = $1`, [A.messageId]))[0].reply_status).toBe('SKIPPED');
+    expect(await systemMessages(A.conversationId)).toEqual([]);
+    await close(A.tenantId, A.conversationId).expect(200);
+    expect((await eventsOf(A.conversationId)).filter((e) => e === 'CLOSED')).toHaveLength(1);
+  });
+
+  it('a closed conversation is read-only for staff: takeover, return and reply → 409, nothing stored', async () => {
+    await close(A.tenantId, A.conversationId).expect(200);
+    const before = await snapshot(A.tenantId);
+    await act(A.tenantId, A.conversationId, 'takeover').expect(409);
+    await act(A.tenantId, A.conversationId, 'return-to-ai').expect(409);
+    await reply(A.tenantId, A.conversationId, 'too late').expect(409);
+    expect(await snapshot(A.tenantId)).toEqual(before);
+  });
+
+  it('lists: Open by default without it, the Closed tab with it; the detail shows status and a CLOSED marker', async () => {
+    await close(A.tenantId, A.conversationId).expect(200);
+    expect(await list(A.tenantId)).toEqual([]);
+    expect(await list(A.tenantId, 'CLOSED')).toEqual([A.conversationId]);
+    expect(await list(B.tenantId, 'CLOSED')).toEqual([]);
+    const detail = (await http().get(`/conversations/${A.conversationId}`).set(TENANT_HEADER, A.tenantId).expect(200)).body;
+    expect(detail.conversation.status).toBe('CLOSED');
+    expect(detail.lifecycle.map((l: { type: string }) => l.type)).toEqual(['CLOSED']);
+    await http().get(`/conversations?status=ARCHIVED`).set(TENANT_HEADER, A.tenantId).expect(400);
+  });
+
+  it('the customer\'s next message reopens the same conversation in AI mode, even if staff had taken over', async () => {
+    const first = (await webhook(A.tenantId, 'lc-1', '+966500000201', 'hello')).body;
+    await act(A.tenantId, first.conversationId, 'takeover').expect(200);
+    await close(A.tenantId, first.conversationId).expect(200);
+
+    const again = (await webhook(A.tenantId, 'lc-2', '+966500000201', 'me again')).body;
+    expect(again.conversationId).toBe(first.conversationId);
+    expect(await statusOf(first.conversationId)).toBe('OPEN');
+    expect(await modeOf(first.conversationId)).toBe('AI');
+    expect((await rows(`SELECT reply_status FROM messages WHERE id = $1`, [again.messageId]))[0].reply_status).toBe('PENDING');
+    expect(await eventsOf(first.conversationId)).toEqual(['TAKEOVER', 'CLOSED', 'REOPENED']);
+    const detail = (await http().get(`/conversations/${first.conversationId}`).set(TENANT_HEADER, A.tenantId).expect(200)).body;
+    expect(detail.lifecycle.map((l: { type: string }) => l.type)).toEqual(['CLOSED', 'REOPENED']);
+    // The customer is not told: the channel view has no lifecycle data and no closing notice.
+    const channel = (await http().get(`/dev/channel/${A.tenantId}/messages`).query({ from: '+966500000201' }).expect(200)).body;
+    expect(Object.keys(channel).sort()).toEqual(['messages', 'mode']);
+    expect(channel.messages.filter((m: { senderType: string }) => m.senderType === 'SYSTEM')).toHaveLength(1); // the takeover notice only
+  });
+});

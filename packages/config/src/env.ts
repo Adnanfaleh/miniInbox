@@ -34,6 +34,9 @@ export const apiEnvSchema = base.extend({
   ...database.shape,
   ...redis.shape,
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  /** Webhook rate limits per one-minute window: per sender within a tenant, and per tenant overall. */
+  WEBHOOK_RATE_PER_SENDER: z.coerce.number().int().min(1).default(30),
+  WEBHOOK_RATE_PER_TENANT: z.coerce.number().int().min(1).default(600),
 });
 
 export const workerEnvSchema = base
@@ -50,6 +53,14 @@ export const workerEnvSchema = base
 export const webEnvSchema = base.extend({
   API_BASE_URL: z.url(),
   WEB_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  /** Signs the dashboard's dev-stand-in session cookie (role and tenant). Never logged or sent to the browser. */
+  WEB_SESSION_SECRET: z.string().min(32, 'at least 32 characters'),
+});
+
+/** DEV ONLY: the customer simulator (apps/customer-sim). It calls the API server-side and stores nothing. */
+export const customerSimEnvSchema = base.extend({
+  API_BASE_URL: z.url(),
+  CUSTOMER_SIM_PORT: z.coerce.number().int().min(1).max(65535).default(3002),
 });
 
 export const migrationEnvSchema = base.extend({

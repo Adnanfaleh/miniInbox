@@ -8,11 +8,13 @@
     "build": "next build",
     "dev": "next dev --port 3000",
     "start": "next start --port 3000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@mini-inbox/config": "workspace:*",
     "@mini-inbox/contracts": "workspace:*",
+    "@mini-inbox/ui": "workspace:*",
     "next": "16.4.5",
     "next-intl": "4.14.9",
     "react": "19.3.1",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0"
+    "@types/react-dom": "19.3.0",
+    "vitest": "5.1.0"
   }
 }

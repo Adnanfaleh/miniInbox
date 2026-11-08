@@ -1,15 +1,30 @@
 {
   "App": {
     "title": "Mini Inbox",
-    "devBanner": "Development stand-in: the tenant is chosen on a picker page, not by a real login.",
-    "nav": { "inbox": "Inbox", "persona": "AI persona", "switchTenant": "Switch tenant" },
-    "language": { "label": "Language", "en": "English", "ar": "العربية" },
-    "error": { "title": "Something went wrong", "retry": "Try again" },
-    "loading": "Loading…"
+    "devBanner": "Development stand-in: the role and tenant are chosen on a start page, not by a real login.",
+    "nav": {
+      "inbox": "Inbox",
+      "persona": "AI persona",
+      "switchTenant": "Switch tenant",
+      "exit": "Exit"
+    },
+    "language": {
+      "label": "Language",
+      "en": "English",
+      "ar": "العربية"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "retry": "Try again"
+    },
+    "loading": "Loading…",
+    "roles": {
+      "creator": "Inboxes creator"
+    }
   },
   "SelectTenant": {
     "title": "Choose a tenant",
-    "intro": "Development stand-in for staff login. Pick the business whose inbox you want to open.",
+    "intro": "Inboxes creator mode (development stand-in). Pick a tenant; you can switch to another one at any time.",
     "choose": "Open inbox",
     "none": "No tenants found. Run the seed first.",
     "unavailable": "The API is not reachable. Start it and refresh this page."
@@ -22,11 +37,33 @@
     "refresh": "Refresh",
     "noMessages": "No messages yet.",
     "olderHidden": "Older messages are not shown.",
-    "mode": { "AI": "AI replying", "HUMAN": "Staff replying" },
-    "sender": { "CUSTOMER": "Customer", "AI": "AI", "HUMAN": "Staff", "SYSTEM": "Notice" },
-    "status": { "PENDING": "Waiting", "REPLIED": "Answered", "SKIPPED": "Staff handles", "FAILED": "Failed" },
-    "complexity": { "simple": "Simple", "complex": "Complex" },
-    "intent": { "question": "Question", "booking": "Booking", "complaint": "Complaint", "greeting": "Greeting", "other": "Other" },
+    "mode": {
+      "AI": "AI replying",
+      "HUMAN": "Staff replying"
+    },
+    "sender": {
+      "CUSTOMER": "Customer",
+      "AI": "AI",
+      "HUMAN": "Staff",
+      "SYSTEM": "Notice"
+    },
+    "status": {
+      "PENDING": "Waiting",
+      "REPLIED": "Answered",
+      "SKIPPED": "No AI reply",
+      "FAILED": "Failed"
+    },
+    "complexity": {
+      "simple": "Simple",
+      "complex": "Complex"
+    },
+    "intent": {
+      "question": "Question",
+      "booking": "Booking",
+      "complaint": "Complaint",
+      "greeting": "Greeting",
+      "other": "Other"
+    },
     "takeover": "Take over",
     "returnToAi": "Return to AI",
     "replyLabel": "Your reply",
@@ -34,7 +71,22 @@
     "send": "Send",
     "replyNeedsTakeover": "Take over the conversation to reply manually.",
     "actionFailed": "The action failed. Refresh and try again.",
-    "busy": "The conversation is busy. Try again in a moment."
+    "busy": "The conversation is busy. Try again in a moment.",
+    "tabs": {
+      "label": "Conversation status",
+      "OPEN": "Open",
+      "CLOSED": "Closed"
+    },
+    "lifecycle": {
+      "CLOSED": "Closed",
+      "divider": {
+        "CLOSED": "Conversation closed",
+        "REOPENED": "Reopened by the customer"
+      }
+    },
+    "close": "Close conversation",
+    "closedNote": "This conversation is closed. It reopens with the AI when the customer writes again.",
+    "emptyClosed": "No closed conversations."
   },
   "Persona": {
     "title": "AI persona",
@@ -43,7 +95,12 @@
     "saved": "Saved.",
     "failed": "Could not save. Check the highlighted fields.",
     "noPersona": "This business has no persona yet. Fill in the form and save.",
-    "sections": { "behaviour": "Behaviour", "messages": "Automatic messages", "hours": "Working hours", "knowledge": "Knowledge base" },
+    "sections": {
+      "behaviour": "Behaviour",
+      "messages": "Automatic messages",
+      "hours": "Working hours",
+      "knowledge": "Knowledge base"
+    },
     "fields": {
       "tone": "Tone and behaviour",
       "replyType": "Reply type",
@@ -62,7 +119,11 @@
       "timeZone": "Time zone (read-only)",
       "handoffNoticesEnabled": "Tell the customer when staff take over and when the AI is back"
     },
-    "languages": { "ar": "Arabic", "en": "English", "match_customer": "Match the customer" },
+    "languages": {
+      "ar": "Arabic",
+      "en": "English",
+      "match_customer": "Match the customer"
+    },
     "knowledge": {
       "titleEn": "Title (English)",
       "titleAr": "Title (Arabic)",
@@ -73,5 +134,18 @@
       "empty": "No entries. The AI will send the out-of-knowledge-base reply to every question.",
       "entry": "Entry {number}"
     }
+  },
+  "Start": {
+    "title": "Welcome",
+    "intro": "Development stand-in for staff login. Choose how you want to enter.",
+    "creator": "Inboxes creator",
+    "creatorHint": "Open and switch between all tenants",
+    "tenant": "Select tenant",
+    "tenantHint": "Open one tenant’s dashboard"
+  },
+  "EnterTenant": {
+    "title": "Select your tenant",
+    "intro": "You stay in this tenant’s dashboard until you press Exit.",
+    "back": "Back"
   }
 }

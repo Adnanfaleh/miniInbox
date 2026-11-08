@@ -16,7 +16,8 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @mini-inbox/database migrate:deploy",
-    "db:seed": "pnpm --filter @mini-inbox/database seed"
+    "db:seed": "pnpm --filter @mini-inbox/database seed",
+    "demo:messages": "node scripts/demo-messages.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

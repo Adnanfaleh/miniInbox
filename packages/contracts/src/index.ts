@@ -1,9 +1,10 @@
 // Shared request/response schemas (Zod), used by the API, the worker and the dashboard.
 export { TENANT_HEADER, tenantIdSchema } from './tenant.js';
-export { inboundMessageSchema, type InboundMessage, type InboundMessageAccepted } from './webhook.js';
+export { inboundMessageSchema, senderSchema, SENDER_PATTERN, type InboundMessage, type InboundMessageAccepted } from './webhook.js';
 export {
   INBOUND_MESSAGE_QUEUE,
   INBOUND_MESSAGE_JOB,
+  INBOUND_MESSAGE_JOB_OPTIONS,
   inboundMessageJobSchema,
   inboundMessageJobId,
   type InboundMessageJob,
@@ -22,6 +23,10 @@ export {
   type ManualReply,
   type ConversationMode,
   type ConversationModeState,
+  CONVERSATION_STATUSES,
+  type ConversationStatus,
+  type ConversationStatusState,
+  type LifecycleMarker,
   type ManualReplyCreated,
   conversationListQuerySchema,
   conversationDetailQuerySchema,
@@ -34,6 +39,13 @@ export {
   type ConversationDetailResponse,
 } from './conversations.js';
 export { DAYS, parseWorkingDays } from './working-days.js';
+export {
+  channelThreadQuerySchema,
+  CHANNEL_THREAD_LIMIT,
+  type ChannelThreadQuery,
+  type ChannelMessage,
+  type ChannelThreadResponse,
+} from './channel.js';
 export {
   personaInputSchema,
   knowledgeEntryInputSchema,

@@ -1,0 +1,12 @@
+{
+  "name": "@mini-inbox/ui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared stylesheet for the tenant dashboard and the customer simulator.",
+  "exports": {
+    "./theme.css": "./theme.css"
+  },
+  "files": [
+    "theme.css"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@mini-inbox/customer-sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DEV ONLY: customer simulator. Three test customers send messages through the webhook and read replies. Stores nothing.",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --port 3002",
+    "start": "next start --port 3002",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mini-inbox/config": "workspace:*",
+    "@mini-inbox/contracts": "workspace:*",
+    "@mini-inbox/ui": "workspace:*",
+    "next": "16.4.5",
+    "next-intl": "4.14.9",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
+  }
+}

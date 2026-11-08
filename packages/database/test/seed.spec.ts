@@ -1,4 +1,5 @@
-// Seed tests (workflow/phase-10-plan.md): idempotent, one record per tenant for the shared person, no AI content.
+// Seed tests (workflow/phase-10-plan.md): idempotent, one record per tenant for the shared person, no AI content,
+// the last customer message per conversation queued once and never re-queued after the worker settles it.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createPrismaClient } from '../src/client.js';
 import { SEED_TENANTS, SHARED_PERSON, seed } from '../src/seed.js';
@@ -52,8 +53,52 @@ describe('seed', () => {
     ]);
   });
 
-  it('seeds customer messages only, as history that is not waiting for a reply', async () => {
-    const senders = (await owner.query(`SELECT DISTINCT sender_type, reply_status FROM messages`)).rows;
-    expect(senders).toEqual([{ sender_type: 'CUSTOMER', reply_status: null }]);
+  it('seeds customer messages only; the last one per conversation waits for the worker, earlier ones are history', async () => {
+    const senders = (await owner.query(`SELECT DISTINCT sender_type FROM messages`)).rows;
+    expect(senders).toEqual([{ sender_type: 'CUSTOMER' }]);
+    const rows = (
+      await owner.query(
+        `SELECT conversation_id, reply_status,
+                created_at = max(created_at) OVER (PARTITION BY conversation_id) AS is_last
+           FROM messages`,
+      )
+    ).rows;
+    for (const r of rows) expect(r.reply_status).toBe(r.is_last ? 'PENDING' : null);
+    expect(rows.filter((r) => r.reply_status === 'PENDING')).toHaveLength(4);
+  });
+
+  it('returns exactly the pending messages to queue, with tenant-matching IDs, and the same IDs on a re-run', async () => {
+    const pendingRows = (await owner.query(`SELECT tenant_id, conversation_id, id FROM messages WHERE reply_status = 'PENDING'`)).rows;
+    const expected = pendingRows.map((r) => ({ tenantId: r.tenant_id, conversationId: r.conversation_id, messageId: r.id }));
+    const sort = (a: { messageId: string }, b: { messageId: string }) => a.messageId.localeCompare(b.messageId);
+    const { pending } = await seed(ownerPrisma);
+    expect([...pending].sort(sort)).toEqual([...expected].sort(sort));
+    expect([...(await seed(ownerPrisma)).pending].sort(sort)).toEqual([...expected].sort(sort));
+  });
+
+  it('never re-queues a message the worker already settled', async () => {
+    const settled = (await owner.query(`SELECT id FROM messages WHERE reply_status = 'PENDING' ORDER BY id LIMIT 2`)).rows;
+    await owner.query(`UPDATE messages SET reply_status = 'REPLIED' WHERE id = $1`, [settled[0].id]);
+    await owner.query(`UPDATE messages SET reply_status = 'SKIPPED' WHERE id = $1`, [settled[1].id]);
+    const { pending } = await seed(ownerPrisma);
+    const ids = pending.map((p) => p.messageId);
+    expect(ids).toHaveLength(2);
+    expect(ids).not.toContain(settled[0].id);
+    expect(ids).not.toContain(settled[1].id);
+    const after = (await owner.query(`SELECT reply_status FROM messages WHERE id = ANY($1::uuid[]) ORDER BY id`, [settled.map((s) => s.id)])).rows;
+    expect(after.map((r) => r.reply_status)).toEqual(['REPLIED', 'SKIPPED']);
+  });
+
+  it('upgrades a database seeded before queueing: a never-queued last message becomes pending', async () => {
+    await resetDatabase();
+    await seed(ownerPrisma);
+    await owner.query(`UPDATE messages SET reply_status = NULL`);
+    const { pending } = await seed(ownerPrisma);
+    expect(pending).toHaveLength(4);
+    const statuses = (await owner.query(`SELECT reply_status, count(*)::int AS n FROM messages GROUP BY reply_status ORDER BY reply_status`)).rows;
+    expect(statuses).toEqual([
+      { reply_status: 'PENDING', n: 4 },
+      { reply_status: null, n: 1 },
+    ]);
   });
 });

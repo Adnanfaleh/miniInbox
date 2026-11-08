@@ -22,6 +22,10 @@ export interface WorkerSettings {
   /** Retries for reply jobs (inbound jobs carry the producer's options). */
   replyAttempts: number;
   replyBackoffMs: number;
+  /** A PENDING customer message older than this with no live job is treated as lost and queued again. */
+  recoverAfterMs: number;
+  /** How often the recovery sweep runs (it also runs once when the consumers start). */
+  recoverySweepMs: number;
 }
 
 export const WORKER_SETTINGS = 'WORKER_SETTINGS';
@@ -33,6 +37,8 @@ export const DEFAULT_WORKER_SETTINGS: WorkerSettings = {
   historySize: 10,
   replyAttempts: 5,
   replyBackoffMs: 2000,
+  recoverAfterMs: 120_000,
+  recoverySweepMs: 60_000,
 };
 
 /**
