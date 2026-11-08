@@ -1,0 +1,77 @@
+{
+  "App": {
+    "title": "Mini Inbox",
+    "devBanner": "Development stand-in: the tenant is chosen on a picker page, not by a real login.",
+    "nav": { "inbox": "Inbox", "persona": "AI persona", "switchTenant": "Switch tenant" },
+    "language": { "label": "Language", "en": "English", "ar": "العربية" },
+    "error": { "title": "Something went wrong", "retry": "Try again" },
+    "loading": "Loading…"
+  },
+  "SelectTenant": {
+    "title": "Choose a tenant",
+    "intro": "Development stand-in for staff login. Pick the business whose inbox you want to open.",
+    "choose": "Open inbox",
+    "none": "No tenants found. Run the seed first.",
+    "unavailable": "The API is not reachable. Start it and refresh this page."
+  },
+  "Inbox": {
+    "conversations": "Conversations",
+    "empty": "No conversations yet.",
+    "noSelection": "Select a conversation to read it.",
+    "notFound": "This conversation was not found.",
+    "refresh": "Refresh",
+    "noMessages": "No messages yet.",
+    "olderHidden": "Older messages are not shown.",
+    "mode": { "AI": "AI replying", "HUMAN": "Staff replying" },
+    "sender": { "CUSTOMER": "Customer", "AI": "AI", "HUMAN": "Staff", "SYSTEM": "Notice" },
+    "status": { "PENDING": "Waiting", "REPLIED": "Answered", "SKIPPED": "Staff handles", "FAILED": "Failed" },
+    "complexity": { "simple": "Simple", "complex": "Complex" },
+    "intent": { "question": "Question", "booking": "Booking", "complaint": "Complaint", "greeting": "Greeting", "other": "Other" },
+    "takeover": "Take over",
+    "returnToAi": "Return to AI",
+    "replyLabel": "Your reply",
+    "replyPlaceholder": "Write a reply to the customer…",
+    "send": "Send",
+    "replyNeedsTakeover": "Take over the conversation to reply manually.",
+    "actionFailed": "The action failed. Refresh and try again.",
+    "busy": "The conversation is busy. Try again in a moment."
+  },
+  "Persona": {
+    "title": "AI persona",
+    "intro": "These settings apply to this business only. Changes are used from the next AI reply.",
+    "save": "Save",
+    "saved": "Saved.",
+    "failed": "Could not save. Check the highlighted fields.",
+    "noPersona": "This business has no persona yet. Fill in the form and save.",
+    "sections": { "behaviour": "Behaviour", "messages": "Automatic messages", "hours": "Working hours", "knowledge": "Knowledge base" },
+    "fields": {
+      "tone": "Tone and behaviour",
+      "replyType": "Reply type",
+      "replyTypeHint": "For example: friendly, professional",
+      "languagePreference": "Reply language",
+      "replyMaxLength": "Reply length limit (characters)",
+      "businessInstructions": "Business instructions",
+      "outOfKbMessageEn": "Out-of-knowledge-base reply (English)",
+      "outOfKbMessageAr": "Out-of-knowledge-base reply (Arabic)",
+      "outOfHoursMessageEn": "Out-of-hours reply (English)",
+      "outOfHoursMessageAr": "Out-of-hours reply (Arabic)",
+      "workingDays": "Working days",
+      "workingDaysHint": "For example: SUN-THU or MON,WED,FRI",
+      "workStart": "Opens at",
+      "workEnd": "Closes at",
+      "timeZone": "Time zone (read-only)",
+      "handoffNoticesEnabled": "Tell the customer when staff take over and when the AI is back"
+    },
+    "languages": { "ar": "Arabic", "en": "English", "match_customer": "Match the customer" },
+    "knowledge": {
+      "titleEn": "Title (English)",
+      "titleAr": "Title (Arabic)",
+      "contentEn": "Content (English)",
+      "contentAr": "Content (Arabic)",
+      "add": "Add entry",
+      "remove": "Remove",
+      "empty": "No entries. The AI will send the out-of-knowledge-base reply to every question.",
+      "entry": "Entry {number}"
+    }
+  }
+}

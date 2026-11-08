@@ -1,0 +1,4 @@
+{
+  "globalTables": ["tenants", "_prisma_migrations"],
+  "tenantColumns": ["tenant_id"]
+}

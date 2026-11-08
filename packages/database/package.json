@@ -1,0 +1,33 @@
+{
+  "name": "@mini-inbox/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Prisma schema, migrations and the tenant-scoped data-access layer.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "prisma generate && tsc -p tsconfig.json --noEmit",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:test": "DB_TARGET=test prisma migrate deploy",
+    "test": "pnpm migrate:test && vitest run",
+    "test:isolation": "pnpm migrate:test && vitest run test/rls.spec.ts test/repositories.spec.ts test/seed.spec.ts",
+    "seed": "node dist/seed.js"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.1",
+    "vitest": "5.1.0"
+  }
+}

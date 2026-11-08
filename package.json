@@ -1,0 +1,33 @@
+{
+  "name": "mini-inbox",
+  "private": true,
+  "description": "Mini Inbox: multi-tenant AI inbox MVP (NestJS API, BullMQ worker, Next.js dashboard, Prisma/Postgres, Redis).",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "bootstrap": "node scripts/ensure-env.mjs && pnpm install && docker compose up -d --wait && pnpm -r build && pnpm db:migrate && pnpm db:seed",
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --workspace-concurrency=1 test",
+    "test:isolation": "pnpm -r --workspace-concurrency=1 test:isolation",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @mini-inbox/database migrate:deploy",
+    "db:seed": "pnpm --filter @mini-inbox/database seed"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "@swc/core",
+      "esbuild",
+      "prisma"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "6.0.3"
+  }
+}
